@@ -1,7 +1,10 @@
 # CLAUDE.md
 
-Demo of Over-The-Air (OTA) updates. Scope, architecture and roadmap are
-still to be defined; see README.md as they are filled in.
+Demo of Over-The-Air (OTA) updates: a Raspberry Pi 4 (extendable to a
+small fleet) running a Yocto + RAUC image built in AWS, with updates,
+manual and automatic rollbacks (green / blue / red images) and staged
+fleet rollouts driven from GitHub Actions. See README.md for the goal,
+architecture, scenarios and roadmap.
 
 ## Principles
 
@@ -10,12 +13,26 @@ still to be defined; see README.md as they are filled in.
   cost impact in any issue or PR that adds cloud resources.
 - **Makefile is the single entry point.** CI calls `make` targets and does
   not duplicate logic in workflow YAML.
+- **Traceable.** Every release and rollout leaves evidence (SBOM, signed
+  bundle, audit log, per-device result); see README "Compliance and
+  traceability".
 - **No secrets in the repo.** CI reaches cloud providers through OIDC (no
   long-lived keys); signing keys and tokens are GitHub secrets.
 
 ## Architecture constraints
 
-(Fill in once the architecture is decided.)
+- Image: Yocto (`meta-raspberrypi`) for the Raspberry Pi 4 (arm64), A/B
+  updates with RAUC (`meta-rauc-community`). Bundles are signed in CI.
+- Partitions: boot, rootfs A, rootfs B (read-only), data (persistent).
+- Automatic rollback is on the device: boot counting + hardware watchdog;
+  a slot is marked good only after the health check passes.
+- One image for the whole fleet: nothing device-specific in the image;
+  device identity (ID, X.509 certificate) is provisioned into the data
+  partition separately.
+- Yocto builds run on an ephemeral EC2 (spot) instance; downloads and
+  sstate caches live in S3.
+- Fleet backend: not decided yet (AWS IoT Core Jobs recommended, Eclipse
+  hawkBit the alternative). Do not build on either before the decision.
 
 ## Issue workflow
 
