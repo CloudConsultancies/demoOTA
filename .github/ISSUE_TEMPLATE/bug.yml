@@ -1,0 +1,28 @@
+name: Bug
+description: Something in the device, update server, pipelines or a scenario does not work
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Observed behaviour, error message.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: input
+    id: run
+    attributes:
+      label: Failing workflow run
+      description: Link to the GitHub Actions run, if any.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant output (device/update client logs, server logs, workflow log).
+      render: text
