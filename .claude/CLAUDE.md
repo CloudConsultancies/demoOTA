@@ -42,12 +42,26 @@ Work is tracked as GitHub issues (`gh` is installed and authenticated).
   the chat first (title, labels, body with *Context*, *Acceptance
   criteria*, *Notes*; scenarios use the scenario template). Create it with
   `gh issue create` only after the user approves the draft.
-- **Labels:** `enhancement`, `bug`, `documentation`, `scenario`, `ci`,
-  `security`, `cost`, `tech-debt`. Add area labels once the architecture
-  is decided.
+- **Labels:** type: `enhancement`, `bug`, `documentation`, `scenario`,
+  `ci`, `security`, `cost`, `tech-debt`, `compliance` (SBOM, CVE reports,
+  audit log, incident records). Area: `infra` (Terraform / AWS), `image`
+  (Yocto layers, recipes, green/blue/red variants), `device` (RAUC,
+  partitions, boot counting, watchdog, health check, update agent),
+  `fleet` (fleet backend, provisioning, rollout and rollback), `app`
+  (demo web app).
 - **"Work on #N":** read it with `gh issue view N --comments`; branch
   `issue/N-short-name` from the latest `origin/main`; commit messages
   reference `Refs #N`.
+- **Branch names:** `issue/N-short-name` for all product, design and
+  conceptual work (decisions and design discussions get an issue too, so
+  the decision stays with it). `chore/short-name` only for repo
+  housekeeping that changes nothing in the product: setup, GitHub
+  settings, CI, tooling, dependency updates. Lowercase, digits, hyphens. The
+  `Branch name` workflow checks this on every PR and is a required check.
+- **GitHub rules:** `main` accepts changes only through PRs (ruleset
+  "Protect main": no direct push, no force push, no deletion, review
+  threads resolved). Merged branches are deleted automatically; after a
+  merge, `git fetch --prune` and delete the local branch.
 - **Ask before pushing:** when the work is committed locally, stop and ask
   the user; they may review the branch locally first.
 - **After approval:** push the branch and open the PR with `gh pr create`
