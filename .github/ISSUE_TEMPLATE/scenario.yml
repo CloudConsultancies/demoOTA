@@ -1,0 +1,47 @@
+name: Demo scenario
+description: A scripted demonstration of an OTA update feature
+labels: [scenario]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What the audience should see and understand.
+    validations:
+      required: true
+  - type: textarea
+    id: features
+    attributes:
+      label: OTA features shown
+      description: Mechanisms involved (e.g. A/B partitions, signed images, delta updates, automatic rollback).
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps
+      description: What the presenter (or the script) does, in order.
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected observations
+      description: What the device / update server / logs show at each step, with rough timings.
+    validations:
+      required: true
+  - type: textarea
+    id: reset
+    attributes:
+      label: Reset
+      description: How to return the device(s) to the starting state for the next run.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Prerequisites (other issues), risks, out of scope.
