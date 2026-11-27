@@ -2,7 +2,7 @@
 # Prints the Infracost API key to stdout, or nothing if there is none:
 # INFRACOST_API_KEY if set (CI: the secret), else the key that
 # `infracost auth login` saved. `infracost configure get api_key` cannot
-# be used: v0.10.51 removed `infracost configure`.
+# be used: Infracost v2 removed `infracost configure`.
 #
 #   scripts/infracost-key.sh
 set -euo pipefail

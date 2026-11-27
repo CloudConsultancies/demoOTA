@@ -107,6 +107,11 @@ make infracost-github-secret    # stores it as the INFRACOST_API_KEY secret
 Without the secret the estimate is skipped: the job passes, and the PR
 comment says it was skipped. Locally, `infracost auth login` is enough.
 
+The script needs Infracost **v0.10.x** (CI pins it). v2 is a different
+CLI (`scan`, `inspect`) without the commands the script uses; if v2 comes
+first on your PATH, point at a v0.10 binary:
+`INFRACOST=/usr/local/bin/infracost make cost-estimate`.
+
 
 ## Teardown
 

@@ -31,8 +31,18 @@ MD
 key=$("$(dirname "$0")/infracost-key.sh")
 [[ -n "$key" ]] || skip "no Infracost API key (secret \`INFRACOST_API_KEY\`, see \`make infracost-github-secret\`)."
 
-command -v infracost >/dev/null || {
+# Infracost v0.10 (CI pins 0.10.x). v2 is a different CLI (scan,
+# inspect) without diff --path / output; INFRACOST points at a v0.10
+# binary when v2 comes first on PATH.
+infracost=${INFRACOST:-infracost}
+command -v "$infracost" >/dev/null || {
   echo "infracost is not installed: https://www.infracost.io/docs/#quick-start" >&2
+  exit 1
+}
+version=$(INFRACOST_SKIP_UPDATE_CHECK=true "$infracost" --version 2>/dev/null || true)
+[[ $version == *v0.10.* ]] || {
+  echo "Needs Infracost v0.10.x, found: ${version:-unknown} ($(command -v "$infracost"))." >&2
+  echo "Run with a v0.10 binary, e.g. INFRACOST=/usr/local/bin/infracost make cost-estimate" >&2
   exit 1
 }
 
@@ -44,9 +54,9 @@ usage_args=()
 
 # Plan JSON: the diff is between the prior state and the planned state.
 # Results stay here: nothing is uploaded to the Infracost Cloud dashboard.
-INFRACOST_ENABLE_CLOUD=false INFRACOST_API_KEY=$key infracost diff --path "$work/plan.json" "${usage_args[@]}" \
+INFRACOST_ENABLE_CLOUD=false INFRACOST_API_KEY=$key "$infracost" diff --path "$work/plan.json" "${usage_args[@]}" \
   --format json --out-file "$work/infracost.json" >&2
-diff_text=$(infracost output --path "$work/infracost.json" --format diff --no-color)
+diff_text=$("$infracost" output --path "$work/infracost.json" --format diff --no-color)
 
 read -r past total change currency < <(jq -r '
   [(.pastTotalMonthlyCost // "0"), (.totalMonthlyCost // "0"),

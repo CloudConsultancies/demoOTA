@@ -63,7 +63,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: make infra-plan-comment STACK=storage PR=${{ github.event.pull_request.number }}
+      # v0.10: scripts/cost-estimate.sh uses diff --path and output,
+      # which v2 (a different CLI) does not have
       - uses: infracost/actions/setup@v3
+        with:
+          version: 0.10.x
       - name: Estimate the cost of the plan
         env:
           INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
