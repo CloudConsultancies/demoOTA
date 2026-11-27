@@ -172,6 +172,10 @@ Expected findings (accepted, do not fail the check):
 - `SPECIFIC_GITHUB_REPO_AND_BRANCH_RECOMMENDED` (WARNING) on the
   `demo-ota-plan` trust: deliberate. The plan role serves every branch,
   and it is read-only and bound to this repository's IDs.
+- `ALLOW_NOTACTION_WITH_UNSUPPORTED_TAG_CONDITION_KEY_FOR_SERVICE`
+  (SUGGESTION) on the apply and boundary policies: the by-tag statement
+  allows only actions that support `aws:ResourceTag`; the others are not
+  granted by it. That fails closed, which is intended.
 - `CONFIRM_AUDIENCE_CLAIM_TYPE` (SUGGESTION) on both trusts: a reminder
   that `aud` is single-valued. The trust already uses a plain
   `StringEquals`, without `ForAnyValue`/`ForAllValues`.
