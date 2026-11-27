@@ -42,7 +42,7 @@ holds the full procedure; follow it instead of improvising the steps.
 | When | Skill |
 |---|---|
 | a task, bug or demo scenario comes up; "draft an issue" | `issue-draft`: draft in the chat, labels, create only after approval |
-| "work on #N"; pushing or opening the PR for an issue | `work-on-issue`: branch naming, `Refs #N`, ask before pushing, PR with `Closes #N`, never merge |
+| "work on #N"; pushing or opening the PR for an issue | `work-on-issue`: check the issue against the code, status In progress / In review, branch naming, `Refs #N`, ask before pushing, PR with `Closes #N`, never merge |
 | adding or changing a diagram | `drawio-diagram`: `docs/<name>.drawio.svg`, white background, text description, checker |
 | an issue or PR adds or changes cloud resources | `cost-impact`: "Cost impact" section, teardown check, always-on needs agreement |
 
@@ -51,6 +51,9 @@ Repo facts the skills rely on:
 - Work is tracked as GitHub issues (`gh` is installed and authenticated).
   Questions and decisions about an issue go into an issue comment as well
   as the chat.
+- Issues carry GitHub's built-in issue status (Backlog, Todo, In progress,
+  In review, Done, ...): not a label, not a Projects field. Set it with
+  `.claude/skills/work-on-issue/set_status.sh N "<status>"`.
 - `main` accepts changes only through PRs (ruleset "Protect main": no
   direct push, no force push, no deletion, review threads resolved). The
   `Branch name` workflow is a required check. Merged branches are deleted
