@@ -11,3 +11,5 @@ tfplan
 *_override.tf
 # Plan summary for the pull request comment (make infra-plan)
 plan-summary.md
+# Local build output (dummy bundle, test runs)
+build/

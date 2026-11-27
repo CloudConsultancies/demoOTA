@@ -1,0 +1,54 @@
+name: Signing
+
+# Proves the RAUC signing chain (docs/signing.md). All logic is in make
+# targets.
+#   sign:       in the "release" environment (deployments from main
+#               only): signs a dummy bundle with the signing key and
+#               verifies it with the committed CA certificate
+#   no-key:     outside the environment: the signing secret is empty
+# Run it by hand from a feature branch to see the sign job refused by the
+# environment's branch rule.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "yocto/meta-demo-ota/recipes-core/rauc/files/ca.cert.pem"
+      - "scripts/bundle-dummy.sh"
+      - ".github/workflows/signing.yml"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: signing-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  sign:
+    name: Sign and verify a dummy bundle
+    runs-on: ubuntu-24.04
+    environment: release
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install RAUC
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq rauc squashfs-tools
+      - name: Sign
+        env:
+          RAUC_SIGNING_KEY: ${{ secrets.RAUC_SIGNING_KEY }}
+          RAUC_SIGNING_CERT: ${{ secrets.RAUC_SIGNING_CERT }}
+        run: make bundle-dummy
+      - name: Verify
+        run: make bundle-verify
+
+  no-key:
+    name: No signing key outside the release environment
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - env:
+          RAUC_SIGNING_KEY: ${{ secrets.RAUC_SIGNING_KEY }}
+        run: make signing-key-absent
