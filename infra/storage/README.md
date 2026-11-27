@@ -41,7 +41,7 @@ targets only:
 
 | Event | Role | Targets |
 |---|---|---|
-| pull request | `demo-ota-plan` (read-only) | `tf-check`, `infra-plan`, `infra-plan-comment` (one comment per stack, updated on every push) |
+| pull request | `demo-ota-plan` (read-only) | `tf-check`, `infra-plan`, `infra-plan-comment`, `cost-estimate`, `cost-estimate-comment` (one plan comment and one cost comment per stack, updated on every push) |
 | push to `main`, or run by hand on `main` | `demo-ota-apply` | `tf-check`, `infra-plan`, `infra-apply` |
 
 The apply on `main` plans again and applies that plan. It does not reuse
@@ -52,6 +52,7 @@ Locally (read-only, a human):
 
 ```sh
 AWS_PROFILE=demo-k8s make infra-plan    # STACK=storage is the default
+make cost-estimate                       # prices the saved plan (Infracost)
 ```
 
 ## GitHub repository variables
@@ -77,6 +78,40 @@ variables.
 About $1 per month for what stays between demos (~5 GB of artifacts,
 ~40 GB of cache, records in KB, at $0.023 per GB-month in eu-north-1),
 plus a few cents of requests per build. This was agreed in #4.
+
+### Cost estimate on pull requests (Infracost)
+
+`make cost-estimate` prices the plan that `make infra-plan` saved with
+[Infracost](https://www.infracost.io/): the monthly cost before the plan,
+after it, and the difference. On a pull request the Infra workflow posts
+it as a comment next to the plan. S3 is billed by usage, so the usage
+assumptions (GB stored, requests per month) are in
+[infracost-usage.yml](infracost-usage.yml); keep them in line with the
+numbers above.
+
+Infracost parses the plan on the runner and asks its pricing API only
+for the prices of the resources it finds; per the
+[Infracost FAQ](https://www.infracost.io/docs/faq/) the plan JSON,
+credentials and secrets are not sent. The script sets
+`INFRACOST_ENABLE_CLOUD=false`, so no results go to the Infracost Cloud
+dashboard either.
+
+The estimate needs a free Infracost API key, which is issued to a
+person. Once, a human:
+
+```sh
+infracost auth login            # opens a browser, stores the key locally
+make infracost-github-secret    # stores it as the INFRACOST_API_KEY secret
+```
+
+Without the secret the estimate is skipped: the job passes, and the PR
+comment says it was skipped. Locally, `infracost auth login` is enough.
+
+The script needs Infracost **v0.10.x** (CI pins it). v2 is a different
+CLI (`scan`, `inspect`) without the commands the script uses; if v2 comes
+first on your PATH, point at a v0.10 binary:
+`INFRACOST=/usr/local/bin/infracost make cost-estimate`.
+
 
 ## Teardown
 

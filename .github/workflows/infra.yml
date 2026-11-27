@@ -3,7 +3,9 @@ name: Infra
 # Terraform stacks under infra/ (except the bootstrap, which a human
 # applies). All logic is in make targets.
 #   pull request: fmt, validate and plan with demo-ota-plan; the plan
-#                 summary is posted to the pull request
+#                 summary and its cost estimate (Infracost, skipped
+#                 without the INFRACOST_API_KEY secret) are posted to
+#                 the pull request
 #   main:         plan and apply with demo-ota-apply (push, or run by hand
 #                 to recreate the cache after make storage-destroy-cache)
 on:
@@ -61,6 +63,19 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: make infra-plan-comment STACK=storage PR=${{ github.event.pull_request.number }}
+      # v0.10: scripts/cost-estimate.sh uses diff --path and output,
+      # which v2 (a different CLI) does not have
+      - uses: infracost/actions/setup@v3
+        with:
+          version: 0.10.x
+      - name: Estimate the cost of the plan
+        env:
+          INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
+        run: make cost-estimate STACK=storage
+      - name: Post the cost estimate to the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: make cost-estimate-comment STACK=storage PR=${{ github.event.pull_request.number }}
 
   apply:
     name: Apply (storage)

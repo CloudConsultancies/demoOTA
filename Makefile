@@ -15,7 +15,7 @@ TFSTATE_BUCKET    ?= demo-ota-tfstate-$(shell AWS_PROFILE=$(BOOTSTRAP_PROFILE) a
 
 .PHONY: help
 help: ## List the targets
-	@grep -hE '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-20s %s\n", $$1, $$2}'
+	@grep -hE '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-24s %s\n", $$1, $$2}'
 
 .PHONY: bootstrap-local
 bootstrap-local: ## First apply only: use local state until the bucket exists
@@ -74,6 +74,7 @@ INFRA_TF   = terraform -chdir=$(INFRA_DIR)
 # CI sets AWS_TFSTATE_BUCKET; locally it is derived like the bootstrap's
 AWS_TFSTATE_BUCKET ?= $(TFSTATE_BUCKET)
 PLAN_SUMMARY       = $(INFRA_DIR)/plan-summary.md
+COST_SUMMARY       = $(INFRA_DIR)/cost-summary.md
 
 .PHONY: infra-init
 infra-init: ## terraform init of STACK (default: storage) with the S3 backend
@@ -99,6 +100,35 @@ infra-plan-comment: ## Post the plan summary of STACK to pull request PR
 	@[ -n "$(PR)" ] || { echo "Set PR=<pull request number>."; exit 1; }
 	@[ -f $(PLAN_SUMMARY) ] || { echo "No plan summary: run make infra-plan first."; exit 1; }
 	scripts/pr-comment.sh "$(PR)" "<!-- infra-plan:$(STACK) -->" $(PLAN_SUMMARY)
+
+# --- Cost estimate of a plan (Infracost) ------------------------------------
+# Prices the plan saved by infra-plan: monthly cost before, after and the
+# difference. Needs INFRACOST_API_KEY (CI: the secret) or a local
+# `infracost auth login`; without a key it writes a "skipped" note.
+# No AWS credentials needed.
+
+.PHONY: cost-estimate
+cost-estimate: ## Estimate the monthly cost change of STACK's saved plan (Infracost)
+	@[ -f $(INFRA_DIR)/tfplan ] || { echo "No saved plan: run make infra-plan first."; exit 1; }
+	scripts/cost-estimate.sh $(INFRA_DIR) tfplan $(STACK) > $(COST_SUMMARY)
+	@cat $(COST_SUMMARY)
+
+# Needs GH_TOKEN (pull-requests: write) and PR. One comment per stack.
+.PHONY: cost-estimate-comment
+cost-estimate-comment: ## Post the cost estimate of STACK to pull request PR
+	@[ -n "$(PR)" ] || { echo "Set PR=<pull request number>."; exit 1; }
+	@[ -f $(COST_SUMMARY) ] || { echo "No cost estimate: run make cost-estimate first."; exit 1; }
+	scripts/pr-comment.sh "$(PR)" "<!-- infracost:$(STACK) -->" $(COST_SUMMARY)
+
+# Once, by a human: Infracost issues the free API key to a person
+# (`infracost auth login` opens a browser). The key goes to gh on stdin,
+# never on the command line; scripts/infracost-key.sh reads it from the
+# file `infracost auth login` wrote.
+.PHONY: infracost-github-secret
+infracost-github-secret: ## Store your Infracost API key as the INFRACOST_API_KEY secret
+	@scripts/infracost-key.sh | grep -q '^ico-' || { echo "No Infracost API key: run infracost auth login first."; exit 1; }
+	@scripts/infracost-key.sh | gh secret set INFRACOST_API_KEY
+	gh secret list
 
 # --- Storage stack: steps a human runs locally ------------------------------
 STORAGE_TF = AWS_PROFILE=$(BOOTSTRAP_PROFILE) terraform -chdir=infra/storage
