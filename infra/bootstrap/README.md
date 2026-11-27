@@ -89,12 +89,16 @@ An AWS account holds only **one** IAM OIDC provider for
 `token.actions.githubusercontent.com`. demoOTA and demoKubernetesCluster
 both need it, so exactly one bootstrap owns it:
 
-- `create_github_oidc_provider = true`: this stack creates it and owns it.
-- `create_github_oidc_provider = false` (default): it already exists, and
-  this stack references it with a data source.
+- `create_github_oidc_provider = true` (default): this stack creates it
+  and owns it.
+- `create_github_oidc_provider = false`: another stack owns it, and this
+  stack references it with a data source.
 
-**Owner:** recorded here when the bootstrap is first applied, and in
-CloudConsultancies/demoKubernetesCluster#2.
+**Owner: demoOTA** (this stack). The account had no GitHub OIDC provider
+when checked on 2026-11-27. demoKubernetesCluster's bootstrap
+(CloudConsultancies/demoKubernetesCluster#2) references it with a data
+source and must not create it. demoOTA's bootstrap has to be applied
+first.
 
 Rules for both projects:
 
@@ -126,8 +130,7 @@ state then moves into the bucket.
 ```sh
 cd infra/bootstrap
 cp terraform.tfvars.example terraform.tfvars   # git-ignored
-# set budget_email; set create_github_oidc_provider = true only if
-# list-open-id-connect-providers above shows no GitHub provider
+# set budget_email (create_github_oidc_provider stays true: demoOTA owns it)
 cd ../..
 
 make bootstrap-local     # writes infra/bootstrap/backend_override.tf

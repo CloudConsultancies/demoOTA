@@ -53,12 +53,14 @@ variable "github_repository_id" {
 variable "create_github_oidc_provider" {
   description = <<-EOT
     true: this stack creates the account's GitHub OIDC provider and owns it.
-    false: an existing provider (created by another stack, for example
-    demoKubernetesCluster's bootstrap) is referenced with a data source.
+    false: an existing provider (created by another stack) is referenced
+    with a data source.
     An account can hold only one provider for token.actions.githubusercontent.com.
+    demoOTA owns it in the shared account (none existed on 2026-11-27);
+    demoKubernetesCluster references it.
   EOT
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "budget_limit_usd" {
