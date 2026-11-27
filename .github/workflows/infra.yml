@@ -1,0 +1,84 @@
+name: Infra
+
+# Terraform stacks under infra/ (except the bootstrap, which a human
+# applies). All logic is in make targets.
+#   pull request: fmt, validate and plan with demo-ota-plan; the plan
+#                 summary is posted to the pull request
+#   main:         plan and apply with demo-ota-apply (push, or run by hand
+#                 to recreate the cache after make storage-destroy-cache)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "infra/**"
+      - "scripts/**"
+      - "Makefile"
+      - ".github/workflows/infra.yml"
+  push:
+    branches: [main]
+    paths:
+      - "infra/**"
+      - "scripts/**"
+      - "Makefile"
+      - ".github/workflows/infra.yml"
+  workflow_dispatch:
+
+permissions: {}
+
+# One run per ref at a time; an apply on main is never cancelled midway
+concurrency:
+  group: infra-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_TFSTATE_BUCKET: ${{ vars.AWS_TFSTATE_BUCKET }}
+  TF_IN_AUTOMATION: "1"
+  TERRAFORM_VERSION: "1.17.2"
+
+jobs:
+  plan:
+    name: Plan (storage)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+      - run: make tf-check
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - run: make infra-plan STACK=storage
+      - name: Post the plan summary to the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: make infra-plan-comment STACK=storage PR=${{ github.event.pull_request.number }}
+
+  apply:
+    name: Apply (storage)
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+      - run: make tf-check
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_APPLY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - run: make infra-plan STACK=storage
+      - run: make infra-apply STACK=storage
