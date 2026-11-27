@@ -60,7 +60,7 @@ Details:
   results. The options are described below.
 - **Everything through GitHub Actions:** build, sign, publish, roll out and roll back
   are all workflows. CI reaches AWS through GitHub OIDC (no long-lived keys). The
-  one-time AWS bootstrap is applied by hand.
+  one-time AWS bootstrap is applied by hand ([infra/bootstrap](infra/bootstrap/README.md)).
 
 ### Device image
 

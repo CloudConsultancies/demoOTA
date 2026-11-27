@@ -1,0 +1,10 @@
+# Terraform local state, plans and provider cache
+.terraform/
+*.tfstate
+*.tfstate.*
+tfplan
+# Variables can hold private values (budget email): only the example is committed
+*.tfvars
+!*.tfvars.example
+# Override files (bootstrap: backend_override.tf for the first, local-state apply)
+*_override.tf

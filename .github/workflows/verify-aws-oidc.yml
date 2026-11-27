@@ -1,0 +1,75 @@
+name: Verify AWS OIDC
+
+# Manual check of the bootstrap roles (infra/bootstrap). Run it once from
+# a branch and once from main:
+#   branch: plan role allowed, apply role refused
+#   main:   plan role allowed, apply role allowed
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+
+jobs:
+  plan-role:
+    name: Plan role is allowed
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - run: make aws-identity
+
+  apply-role-main:
+    name: Apply role is allowed on main
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_APPLY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - run: make aws-identity
+
+  apply-role-branch:
+    name: Apply role is refused on a branch
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Check the variable is set (a refusal must not come from a typo)
+        env:
+          ROLE: ${{ vars.AWS_APPLY_ROLE_ARN }}
+        run: |
+          [[ "$ROLE" =~ ^arn:aws:iam::[0-9]{12}:role/demo-ota-apply$ ]] \
+            || { echo "::error::AWS_APPLY_ROLE_ARN is not set to the demo-ota-apply role"; exit 1; }
+      - name: Try to assume the apply role (expected to fail)
+        id: assume
+        continue-on-error: true
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_APPLY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: The apply role must have been refused
+        env:
+          OUTCOME: ${{ steps.assume.outcome }}
+        run: |
+          if [[ "$OUTCOME" == "failure" ]]; then
+            echo "demo-ota-apply was refused on ${GITHUB_REF} as expected."
+          else
+            echo "::error::demo-ota-apply was assumed on ${GITHUB_REF}; it must be main-only."
+            exit 1
+          fi

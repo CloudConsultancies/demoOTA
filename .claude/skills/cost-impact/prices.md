@@ -1,8 +1,9 @@
 # Reference prices
 
-List prices for **us-east-1** in USD, without free tier. The region of the demo
-is not decided yet. Other regions are usually 5-20 % higher. Update a row when you
-check it again and set the *Checked* date.
+List prices for **us-east-1** in USD, without free tier, unless the row names
+another region. The demo runs in **eu-north-1** (Stockholm, decided in #3); rows
+checked for eu-north-1 say so. Other regions are usually 5-20 % higher than
+us-east-1. Update a row when you check it again and set the *Checked* date.
 
 Sources:
 - **API**: AWS Price List Bulk API,
@@ -16,6 +17,10 @@ Sources:
 | S3 Standard storage | $0.023 per GB-month (first 50 TB) | storage | API `AmazonS3` | 2026-11-27 |
 | S3 PUT, COPY, POST, LIST requests | $0.005 per 1,000 | per request | API `AmazonS3` | 2026-11-27 |
 | S3 GET and other requests | $0.0004 per 1,000 | per request | API `AmazonS3` | 2026-11-27 |
+| S3 Standard storage, eu-north-1 | $0.023 per GB-month (first 50 TB) | storage | API `AmazonS3` (`current/eu-north-1`) | 2026-11-27 |
+| S3 PUT / GET requests, eu-north-1 | $0.005 / $0.0004 per 1,000 | per request | API `AmazonS3` (`current/eu-north-1`) | 2026-11-27 |
+| AWS Budgets (no budget actions) | $0.00 per budget-day; budget actions $0.10 per budget-day; reports $0.01 each | per day | API `AWSBudgets` | 2026-11-27 |
+| IAM roles and policies, IAM OIDC provider, STS | no charge | - | Unverified | - |
 | Data transfer out to the internet | $0.09 per GB (first 10 TB, after the 100 GB/month global free tier) | per GB | API `AWSDataTransfer` | 2026-11-27 |
 | KMS customer-managed key | $1 per key version per month | per month, always on | API `awskms` | 2026-11-27 |
 | KMS asymmetric requests (sign, not RSA 2048) | $0.15 per 10,000 | per request | API `awskms` | 2026-11-27 |

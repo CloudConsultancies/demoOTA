@@ -60,6 +60,17 @@ Repo facts the skills rely on:
 
 - Dev machine: ~8 GB RAM; docker and terraform are installed. Check
   before assuming other tools.
+- AWS: the account is **shared with demoKubernetesCluster** (project
+  `projectDemoK8S`). Region `eu-north-1`, CLI profile `demo-k8s`. demoOTA
+  keeps apart by name prefix `demo-ota-*`, tag `Project=demoOTA` and roles
+  that trust only this repository (`infra/bootstrap/README.md`).
+- Access rules: use the `demo-k8s` profile locally only for **read-only**
+  checks the user asks for (`describe`, `list`, `get`, `sts
+  get-caller-identity`, `terraform plan`). Never apply, change or delete
+  anything with it. The user applies `infra/bootstrap` (`make
+  bootstrap-*`). CI uses only the OIDC roles `demo-ota-plan` (any branch,
+  read-only) and `demo-ota-apply` (`main` only); never touch
+  demoKubernetesCluster's resources.
 
 ## Gotchas
 
