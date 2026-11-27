@@ -1,0 +1,8 @@
+# Copy to terraform.tfvars (git-ignored) and fill in.
+budget_email = "you@example.com"
+
+# Set to true only if the account has no GitHub OIDC provider yet
+# (aws iam list-open-id-connect-providers). See README.md.
+# create_github_oidc_provider = false
+
+# budget_limit_usd = 10
