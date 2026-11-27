@@ -52,20 +52,24 @@ variable "github_repository_id" {
 
 variable "named_services" {
   description = <<-EOT
-    Services whose demo-ota-* named resources the apply role manages by
-    name (S3 buckets are always included). IAM does not accept a wildcard
-    service in a resource ARN, so add a service here when a stack starts
-    using one whose resources have names.
+    Regional services whose demo-ota-* named resources the apply role
+    manages by name. S3 buckets, IAM (roles, policies, instance profiles)
+    and Budgets are always included (roles.tf). IAM does not accept a
+    wildcard service in a resource ARN, so add a service here when a stack
+    starts using one whose resources have names.
   EOT
   type        = list(string)
   default = [
-    "iam", "logs", "sns", "sqs", "events", "cloudwatch", "iot", "ssm",
-    "secretsmanager", "kms", "dynamodb", "lambda", "ecr", "ec2", "budgets",
+    "logs", "sns", "sqs", "events", "cloudwatch", "iot", "ssm",
+    "secretsmanager", "kms", "dynamodb", "lambda", "ecr", "ec2",
   ]
 
   validation {
-    condition     = alltrue([for s in var.named_services : can(regex("^[a-z0-9-]+$", s))])
-    error_message = "named_services must be plain service prefixes such as \"iam\" or \"logs\" (no wildcards)."
+    condition = alltrue([
+      for s in var.named_services :
+      can(regex("^[a-z0-9-]+$", s)) && !contains(["iam", "budgets", "s3"], s)
+    ])
+    error_message = "named_services must be plain regional service prefixes such as \"logs\" (no wildcards; iam, budgets and s3 are handled in roles.tf)."
   }
 }
 

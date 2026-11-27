@@ -160,12 +160,21 @@ again.
 In any checkout: `make bootstrap-init` (once per checkout), then
 `make bootstrap-plan`, `make bootstrap-validate` and `make bootstrap-apply`.
 
-`bootstrap-validate` runs `aws accessanalyzer validate-policy` on the
-planned role, boundary and trust policies. `terraform validate` only
-checks the HCL; IAM's rules for policies (for example "no region in IAM
-ARNs") are checked only by IAM, so run it whenever a policy changes. It
-fails on ERROR and SECURITY_WARNING findings and lists warnings and
-suggestions.
+`bootstrap-validate` checks the planned role, boundary and trust
+policies. `terraform validate` only checks the HCL; IAM's rules for
+policies are checked only by IAM, so run it whenever a policy changes.
+
+1. An offline check of the resource ARNs, for rules that IAM enforces
+   on create but Access Analyzer does not report: a literal service
+   (no `arn:aws:*:`), an empty region for IAM, Budgets and S3, and IAM
+   ARNs that start with a resource type (`role/`, `policy/`, ...).
+2. `aws accessanalyzer validate-policy` (read-only). It fails on ERROR
+   and SECURITY_WARNING findings and lists warnings and suggestions.
+
+Even both together are not a guarantee: IAM may reject a policy for a
+reason neither reports. If `bootstrap-apply` fails with
+`MalformedPolicyDocument`, add the rule to
+`scripts/validate-iam-policies.sh`.
 
 Expected findings (accepted, do not fail the check):
 

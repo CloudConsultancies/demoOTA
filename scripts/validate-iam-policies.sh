@@ -26,6 +26,36 @@ checks=(
   "aws_iam_role.apply|assume_role_policy|RESOURCE_POLICY|AWS::IAM::AssumeRolePolicyDocument"
 )
 
+# IAM rejects some resource ARNs on create (MalformedPolicyDocument) that
+# Access Analyzer accepts, so these rules are checked here first:
+# - literal service part (no arn:aws:*:)
+# - global services (iam, budgets, s3) have an empty region (not even *)
+# - IAM ARNs start with a resource type after the account (role/, ...)
+# - Budgets ARNs start with budget/
+check_arns() {
+  local address=$1 policy=$2 arn bad=0
+  local iam_types='(user|federated-user|role|group|instance-profile|mfa|server-certificate|policy|sms-mfa|saml-provider|oidc-provider|report|access-report|role-template)/'
+  while IFS= read -r arn; do
+    [[ "$arn" == "*" ]] && continue
+    local why=""
+    if [[ ! "$arn" =~ ^arn:aws:[a-z0-9-]+: ]]; then
+      why="service part must be a literal service name"
+    elif [[ "$arn" =~ ^arn:aws:(iam|budgets|s3):[^:] ]]; then
+      why="global service: the region must be empty"
+    elif [[ "$arn" =~ ^arn:aws:iam:: && ! "$arn" =~ ^arn:aws:iam::[0-9*]*:($iam_types|\*$|root$) ]]; then
+      why="IAM ARN must start with a resource type (role/, policy/, ...) after the account"
+    elif [[ "$arn" =~ ^arn:aws:budgets:: && ! "$arn" =~ ^arn:aws:budgets::[0-9*]*:budget/ ]]; then
+      why="Budgets ARN must start with budget/ after the account"
+    fi
+    if [[ -n "$why" ]]; then
+      echo "   ERROR $arn: $why"
+      bad=1
+    fi
+  done < <(jq -r '.Statement[] | (.Resource, .NotResource) | select(. != null)
+                  | if type == "string" then . else .[] end' <<<"$policy" | sort -u)
+  return $bad
+}
+
 failed=0
 for check in "${checks[@]}"; do
   IFS='|' read -r address attr type resource_type <<<"$check"
@@ -34,6 +64,12 @@ for check in "${checks[@]}"; do
     '.resource_changes[] | select(.address == $a) | .change.after[$k] // empty' <<<"$plan_json")
   if [[ -z "$policy" ]]; then
     echo "!! $address: $attr not known in the plan, cannot validate" >&2
+    failed=1
+    continue
+  fi
+
+  if [[ "$type" == "IDENTITY_POLICY" ]] && ! check_arns "$address" "$policy"; then
+    echo "-- $address ($attr): resource ARNs IAM would reject (see above)"
     failed=1
     continue
   fi

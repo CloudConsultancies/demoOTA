@@ -29,20 +29,29 @@ locals {
   # roles is allowed by name (DemoResourcesByName). A stack that needs a
   # service-linked role grants it for that role's ARN in this bootstrap.
   not_on_star = ["iam:PassRole", "iam:CreateServiceLinkedRole"]
-  # Name-prefixed resources in this account, one pattern per service. IAM
-  # does not accept a wildcard in the service part of an ARN, so each
-  # service demoOTA uses is listed (var.named_services). The pattern
-  # covers every ARN layout:
-  #   arn:aws:sns:<region>:<acct>:demo-ota-x
-  #   arn:aws:iam::<acct>:role/demo-ota-x
-  #   arn:aws:logs:<region>:<acct>:log-group:demo-ota-x
-  # Global services (IAM, Budgets) must have an empty region; IAM rejects
-  # even a wildcard there. Regional ones get the demo region.
-  global_services = ["iam", "budgets"]
-  demo_resource_arns = [
-    for svc in var.named_services :
-    "arn:aws:${svc}:${contains(local.global_services, svc) ? "" : var.region}:${local.account_id}:*${var.name_prefix}-*"
-  ]
+
+  # Name-prefixed resources in this account. IAM's rules for resource
+  # ARNs in policies:
+  # - the service part must be literal (no arn:aws:*:...), so each
+  #   regional service demoOTA uses is listed (var.named_services), with
+  #   one pattern that covers every layout after the account:
+  #     arn:aws:sns:<region>:<acct>:demo-ota-x
+  #     arn:aws:logs:<region>:<acct>:log-group:demo-ota-x
+  # - global services have an empty region (not even *), and IAM ARNs
+  #   must start with their resource type (role/, policy/, ...), so IAM
+  #   and Budgets are written out by type.
+  demo_resource_arns = concat(
+    [
+      for svc in var.named_services :
+      "arn:aws:${svc}:${var.region}:${local.account_id}:*${var.name_prefix}-*"
+    ],
+    [
+      "arn:aws:iam::${local.account_id}:role/${var.name_prefix}-*",
+      "arn:aws:iam::${local.account_id}:policy/${var.name_prefix}-*",
+      "arn:aws:iam::${local.account_id}:instance-profile/${var.name_prefix}-*",
+      "arn:aws:budgets::${local.account_id}:budget/${var.name_prefix}-*",
+    ],
+  )
 
   # Services without a region (their requests count as us-east-1)
   global_actions = [
