@@ -13,6 +13,8 @@ set -euo pipefail
 
 dir=$1 plan=$2 stack=$3
 usage=$dir/infracost-usage.yml
+# No "new version available" notice in the logs or the PR comment
+export INFRACOST_SKIP_UPDATE_CHECK=true
 work=$dir/.infracost
 mkdir -p "$work"
 
@@ -26,10 +28,7 @@ MD
   exit 0
 }
 
-key=${INFRACOST_API_KEY:-}
-if [[ -z "$key" ]] && command -v infracost >/dev/null; then
-  key=$(infracost configure get api_key 2>/dev/null || true)
-fi
+key=$("$(dirname "$0")/infracost-key.sh")
 [[ -n "$key" ]] || skip "no Infracost API key (secret \`INFRACOST_API_KEY\`, see \`make infracost-github-secret\`)."
 
 command -v infracost >/dev/null || {

@@ -122,12 +122,12 @@ cost-estimate-comment: ## Post the cost estimate of STACK to pull request PR
 
 # Once, by a human: Infracost issues the free API key to a person
 # (`infracost auth login` opens a browser). The key goes to gh on stdin,
-# never on the command line.
+# never on the command line; scripts/infracost-key.sh reads it from the
+# file `infracost auth login` wrote.
 .PHONY: infracost-github-secret
 infracost-github-secret: ## Store your Infracost API key as the INFRACOST_API_KEY secret
-	@command -v infracost >/dev/null || { echo "Install infracost: https://www.infracost.io/docs/#quick-start"; exit 1; }
-	@infracost configure get api_key 2>/dev/null | grep -q . || { echo "No API key yet: run infracost auth login first."; exit 1; }
-	@infracost configure get api_key | gh secret set INFRACOST_API_KEY
+	@scripts/infracost-key.sh | grep -q '^ico-' || { echo "No Infracost API key: run infracost auth login first."; exit 1; }
+	@scripts/infracost-key.sh | gh secret set INFRACOST_API_KEY
 	gh secret list
 
 # --- Storage stack: steps a human runs locally ------------------------------
