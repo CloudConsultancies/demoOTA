@@ -67,6 +67,9 @@ It may not:
   boundary from a role;
 - create IAM users, access keys, login profiles or other long-lived
   credentials;
+- pass any role other than `demo-ota-*` to a service (`iam:PassRole`),
+  or create service-linked roles (a stack that needs one gets it granted
+  for that role's ARN here);
 - tag a resource of another project into demoOTA (resources that already
   carry a `Project` tag, other projects' named resources, and existing EC2
   resources);
@@ -163,6 +166,15 @@ checks the HCL; IAM's rules for policies (for example "no region in IAM
 ARNs") are checked only by IAM, so run it whenever a policy changes. It
 fails on ERROR and SECURITY_WARNING findings and lists warnings and
 suggestions.
+
+Expected findings (accepted, do not fail the check):
+
+- `SPECIFIC_GITHUB_REPO_AND_BRANCH_RECOMMENDED` (WARNING) on the
+  `demo-ota-plan` trust: deliberate. The plan role serves every branch,
+  and it is read-only and bound to this repository's IDs.
+- `CONFIRM_AUDIENCE_CLAIM_TYPE` (SUGGESTION) on both trusts: a reminder
+  that `aud` is single-valued. The trust already uses a plain
+  `StringEquals`, without `ForAnyValue`/`ForAllValues`.
 
 The Makefile sets `AWS_PROFILE=demo-k8s` (override with
 `BOOTSTRAP_PROFILE=...`) and derives the bucket name from the account ID

@@ -13,15 +13,22 @@
 locals {
   sub_prefix = "repo:${var.github_owner}@${var.github_owner_id}/${var.github_repository}@${var.github_repository_id}"
 
-  plan_role_name   = "${var.name_prefix}-plan"
-  apply_role_name  = "${var.name_prefix}-apply"
-  boundary_name    = "${var.name_prefix}-boundary"
-  plan_role_arn    = "arn:aws:iam::${local.account_id}:role/${local.plan_role_name}"
-  apply_role_arn   = "arn:aws:iam::${local.account_id}:role/${local.apply_role_name}"
-  boundary_arn     = "arn:aws:iam::${local.account_id}:policy/${local.boundary_name}"
-  budget_arn       = "arn:aws:budgets::${local.account_id}:budget/${aws_budgets_budget.demo.name}"
-  bootstrap_state  = "${local.state_bucket_arn}/bootstrap/*"
-  demo_bucket_arns = ["arn:aws:s3:::${var.name_prefix}-*", "arn:aws:s3:::${var.name_prefix}-*/*"]
+  plan_role_name  = "${var.name_prefix}-plan"
+  apply_role_name = "${var.name_prefix}-apply"
+  boundary_name   = "${var.name_prefix}-boundary"
+  plan_role_arn   = "arn:aws:iam::${local.account_id}:role/${local.plan_role_name}"
+  apply_role_arn  = "arn:aws:iam::${local.account_id}:role/${local.apply_role_name}"
+  boundary_arn    = "arn:aws:iam::${local.account_id}:policy/${local.boundary_name}"
+  budget_arn      = "arn:aws:budgets::${local.account_id}:budget/${aws_budgets_budget.demo.name}"
+  bootstrap_state = "${local.state_bucket_arn}/bootstrap/*"
+  # The wildcard also matches the objects (demo-ota-x/key)
+  demo_bucket_arns = ["arn:aws:s3:::${var.name_prefix}-*"]
+
+  # Never granted on "*": passing any role to a service, or creating
+  # service-linked roles, would reach beyond demoOTA. Passing demo-ota-*
+  # roles is allowed by name (DemoResourcesByName). A stack that needs a
+  # service-linked role grants it for that role's ARN in this bootstrap.
+  not_on_star = ["iam:PassRole", "iam:CreateServiceLinkedRole"]
   # Name-prefixed resources in this account, one pattern per service. IAM
   # does not accept a wildcard in the service part of an ARN, so each
   # service demoOTA uses is listed (var.named_services). The pattern
@@ -179,9 +186,9 @@ data "aws_iam_policy_document" "demo_scope" {
   }
 
   statement {
-    sid       = "DemoResourcesByTag"
-    actions   = ["*"]
-    resources = ["*"]
+    sid         = "DemoResourcesByTag"
+    not_actions = local.not_on_star
+    resources   = ["*"]
     condition {
       test     = "StringEquals"
       variable = "aws:ResourceTag/Project"
@@ -194,9 +201,9 @@ data "aws_iam_policy_document" "demo_scope" {
   # Resources that already carry a Project tag are excluded, so a
   # resource of another project cannot be re-tagged into demoOTA.
   statement {
-    sid       = "CreateWithProjectTag"
-    actions   = ["*"]
-    resources = ["*"]
+    sid         = "CreateWithProjectTag"
+    not_actions = local.not_on_star
+    resources   = ["*"]
     condition {
       test     = "StringEquals"
       variable = "aws:RequestTag/Project"
@@ -220,7 +227,7 @@ data "aws_iam_policy_document" "demo_scope" {
     effect = "Deny"
     actions = [
       "iam:Tag*", "iam:Untag*",
-      "s3:PutBucketTagging", "s3:DeleteBucketTagging",
+      "s3:PutBucketTagging", # also removes tags; there is no DeleteBucketTagging action
       "logs:TagResource", "logs:UntagResource", "logs:TagLogGroup", "logs:UntagLogGroup",
       "sns:TagResource", "sns:UntagResource",
       "events:TagResource", "events:UntagResource",
@@ -269,9 +276,8 @@ data "aws_iam_policy_document" "demo_scope" {
     sid    = "DenyChangingStateBucket"
     effect = "Deny"
     actions = [
-      "s3:DeleteBucket*",
+      "s3:DeleteBucket*", # includes DeleteBucketPolicy
       "s3:PutBucket*",
-      "s3:DeleteBucketPolicy",
       "s3:PutEncryptionConfiguration",
       "s3:PutLifecycleConfiguration",
       "s3:PutReplicationConfiguration",
