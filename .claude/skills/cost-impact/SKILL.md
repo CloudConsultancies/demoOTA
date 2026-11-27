@@ -28,9 +28,31 @@ groups) are listed once as "no charge".
 
 ## 2. Price each resource
 
-Use [prices.md](prices.md) for reference prices. Each price there has a source
-and the date it was checked. If you have web access, check the AWS pricing page
-for the resources involved and update `prices.md` (price, *Checked* date). If
+**Terraform resources: Infracost first.** If the change touches a stack
+under `infra/` (not the bootstrap, which CI does not plan), use the
+Infracost estimate when it exists:
+
+- On a PR: the comment that starts with `<!-- infracost:<stack> -->`
+  (`gh api repos/{owner}/{repo}/issues/<PR>/comments --jq '.[] | select(.body | startswith("<!-- infracost:")) | .body'`).
+- Locally, if the user ran it: `infra/<stack>/cost-summary.md` from
+  `make infra-plan` + `make cost-estimate`.
+
+Take the monthly cost before, after and the difference from it, and the
+per-resource lines from its collapsed diff. Its usage-based numbers come
+from `infra/<stack>/infracost-usage.yml`: quote those as the assumptions,
+and if the change adds usage-based resources (S3, data transfer), check that
+the usage file covers them; add the missing entries to the change, otherwise
+they show as $0. Infracost gives the cost per month; work out the per-demo-run
+cost from the assumptions.
+
+**Everything else, or no estimate: prices.md.** Use [prices.md](prices.md)
+when the estimate is missing or says "Skipped", for resources outside
+Terraform (build hosts started by CI, data transfer to devices) and for
+issues, which have no plan yet. Say in the section which source each number
+comes from.
+
+Each price in `prices.md` has a source and the date it was checked. If you have
+web access, check the AWS pricing page for the resources involved and update `prices.md` (price, *Checked* date). If
 not, use the table as it is and say the prices are unverified.
 
 State the region assumed (the Terraform provider region if it exists; otherwise
@@ -57,7 +79,7 @@ a quote.
 ```markdown
 ### Cost impact
 
-Region: <region>. Prices: <source>, checked <date> (or "unverified").
+Region: <region>. Prices: Infracost estimate on this PR (commit <sha>) and/or <prices.md source>, checked <date> (or "unverified").
 
 | Resource | Pricing model | Per demo run | Per month if left running | Always on? | Removed by |
 |---|---|---|---|---|---|
