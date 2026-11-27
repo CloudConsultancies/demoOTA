@@ -122,6 +122,39 @@ storage-destroy-cache: ## Destroy the cache bucket and its contents (asks first)
 	$(STORAGE_TF) init -input=false -backend-config="bucket=$(TFSTATE_BUCKET)" >/dev/null
 	$(STORAGE_TF) destroy -target=aws_s3_bucket.cache
 
+# --- Signing PKI for RAUC bundles (a human runs these locally) --------------
+# The PKI lives outside the repo, in PKI_DIR (default ~/.demo-ota-pki);
+# only the CA certificate is committed. See docs/signing.md.
+
+.PHONY: pki-init
+pki-init: ## Create the root CA and the first signing certificate (once)
+	scripts/pki.sh init
+
+.PHONY: pki-rotate
+pki-rotate: ## Issue a new signing certificate (CA_KEY=<offline copy of the CA key>)
+	scripts/pki.sh rotate
+
+.PHONY: pki-github-secrets
+pki-github-secrets: ## Create the release environment (main only) and store the signing secrets
+	scripts/pki.sh github-secrets
+
+# --- Dummy bundle: proves the signing chain (CI: signing workflow) -----------
+BUNDLE_DIR ?= build/bundle-dummy
+
+.PHONY: bundle-dummy
+bundle-dummy: ## Sign a dummy RAUC bundle (key from RAUC_SIGNING_KEY or PKI_DIR)
+	scripts/bundle-dummy.sh sign $(BUNDLE_DIR)
+
+.PHONY: bundle-verify
+bundle-verify: ## Verify the dummy bundle with the committed CA certificate
+	scripts/bundle-dummy.sh verify $(BUNDLE_DIR)
+
+# Run by a job outside the release environment: the secret must be empty
+.PHONY: signing-key-absent
+signing-key-absent: ## Fail if RAUC_SIGNING_KEY is set (jobs outside the release environment)
+	@[ -z "$$RAUC_SIGNING_KEY" ] || { echo "RAUC_SIGNING_KEY is visible outside the release environment."; exit 1; }
+	@echo "RAUC_SIGNING_KEY is empty here, as expected."
+
 # --- Checks (no cloud access) ----------------------------------------------
 # Own data directory (.terraform-check, git-ignored): a stack already
 # initialised with the S3 backend would otherwise need credentials.
