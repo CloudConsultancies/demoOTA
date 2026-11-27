@@ -89,9 +89,9 @@ any of the fleet backends below.
 Devices install only bundles signed by a certificate that chains to the demoOTA root
 CA, whose certificate is built into the image as the RAUC keyring. `make pki-init`
 creates the CA and a signing certificate (run once, locally). Only the CA certificate
-is committed. The **CA private key is kept offline**: encrypted with a passphrase, on a
-USB stick or in a password manager, and taken out only to issue a new signing
-certificate (`make pki-rotate`). The signing key is a secret of the GitHub environment
+is committed. The **CA private key is kept offline**: encrypted with a passphrase, on
+two USB sticks kept in different places, with the passphrase stored apart in a password
+manager. It is taken out only to issue a new signing certificate (`make pki-rotate`). The signing key is a secret of the GitHub environment
 `release`, which only `main` may use, so feature branches cannot sign. Details,
 rotation and what to do if a key leaks: [docs/signing.md](docs/signing.md).
 

@@ -28,7 +28,8 @@ separate PKI (Phase 3, provisioning).
 
 | Item | Where | Who can use it |
 |---|---|---|
-| CA private key `ca.key.pem` | encrypted, on offline storage (a USB stick kept in a drawer, or an attachment in your password manager), passphrase in your password manager | you, only for `make pki-init` and `make pki-rotate` |
+| CA private key `ca.key.pem` | encrypted, on two USB sticks kept offline in different places; never on the dev machine, in the repo, in CI or in the cloud (see [Managing the CA key](#managing-the-ca-key)) | you, only for `make pki-init` and `make pki-rotate` |
+| CA key passphrase | your password manager, apart from the key file | you |
 | CA certificate `ca.cert.pem` | committed in the repo (public) | everyone; built into the image |
 | Signing key and certificate | secrets `RAUC_SIGNING_KEY`, `RAUC_SIGNING_CERT` of the GitHub environment `release`; working copy in `~/.demo-ota-pki/` | jobs in the `release` environment, which only `main` may use |
 | Serial counter, old signing certificates | `~/.demo-ota-pki/ca.srl`, `~/.demo-ota-pki/archive/` | you |
@@ -38,10 +39,9 @@ separate PKI (Phase 3, provisioning).
 1. `make pki-init`. It creates the PKI in `~/.demo-ota-pki/` (change it with
    `PKI_DIR=`) and asks twice for the CA key passphrase. It refuses to run if a
    PKI already exists. It copies the CA certificate into the repo.
-2. Move `~/.demo-ota-pki/ca.key.pem` to offline storage and delete the local
-   copy. Store the passphrase in your password manager. Keep a second offline
-   copy: if the CA key is lost, the next signing certificate needs a new CA,
-   and with it a new image on every device.
+2. Move `~/.demo-ota-pki/ca.key.pem` to two USB sticks, store the passphrase
+   in your password manager, and delete the local copy, as described in
+   [Managing the CA key](#managing-the-ca-key).
 3. `make pki-github-secrets` creates the `release` environment and allows
    deployments from `main` only. It then stores the signing key and
    certificate as environment secrets. It checks first that the signing
@@ -49,6 +49,91 @@ separate PKI (Phase 3, provisioning).
    the signing workflow runs for the first time: GitHub creates a missing
    environment by itself, without the branch rule.
 4. Commit the CA certificate.
+
+## Managing the CA key
+
+The CA key is the root of trust for every device. Two things must never
+happen to it:
+
+- **Someone else gets it** (the key file *and* its passphrase). They could
+  issue their own signing certificates, and every device would install their
+  bundles.
+- **You lose it** (the key file *or* its passphrase). You could not issue a
+  new signing certificate. When the current one expires or leaks, every
+  device would need an image with a new CA.
+
+The key file is encrypted with the passphrase (AES-256). Both rules follow
+from that: keep **two copies of the file** and **one copy of the passphrase**,
+and **never store the file and the passphrase in the same place**. A copy of
+the file alone is useless to whoever finds it.
+
+### Where to keep it
+
+| What | Where | Why |
+|---|---|---|
+| Key file, copy 1 | USB stick, kept at home (for example a drawer) | used for rotation |
+| Key file, copy 2 | a second USB stick, kept somewhere else (another room, office, a trusted person) | a stick can break or get lost; one fire or theft should not take both |
+| Passphrase | your password manager (KeePassXC, Bitwarden, 1Password, ...), or on paper, never next to the sticks | without it the key file cannot be used, by you or by anyone who finds a stick |
+
+Label the sticks (for example "demoOTA CA key") and use them for nothing
+else. Do not put the key file into the password manager next to its
+passphrase, into cloud storage, into an email, or into the repo.
+
+A password manager entry could look like this:
+
+- Title: `demoOTA RAUC root CA key passphrase`
+- Password: the passphrase
+- Notes: "Decrypts demo-ota-ca.key.pem on the two USB sticks. Needed for
+  make pki-rotate. CA certificate SHA-256 fingerprint: <from `openssl x509
+  -in ca.cert.pem -noout -fingerprint -sha256`>."
+
+### Move it offline (after `make pki-init`)
+
+Plug in a stick and find where it is mounted (`lsblk`, usually
+`/media/$USER/<label>`). For each of the two sticks:
+
+```sh
+cp ~/.demo-ota-pki/ca.key.pem /media/$USER/<stick>/demo-ota-ca.key.pem
+```
+
+Check both copies before removing the original:
+
+```sh
+# same SHA-256 for the original and both copies
+sha256sum ~/.demo-ota-pki/ca.key.pem /media/$USER/<stick1>/demo-ota-ca.key.pem /media/$USER/<stick2>/demo-ota-ca.key.pem
+# asks for the passphrase; no error means the copy and the passphrase both work
+openssl pkey -in /media/$USER/<stick1>/demo-ota-ca.key.pem -noout
+```
+
+Then delete the original. `shred` overwrites it first, so it cannot be
+recovered from the disk:
+
+```sh
+shred -u ~/.demo-ota-pki/ca.key.pem
+```
+
+Unmount the sticks (`umount` or eject in the file manager) and put them
+away. `~/.demo-ota-pki/` now holds only the CA certificate, the serial
+counter and the signing key pair; that is how it should stay.
+
+### Use it (rotation)
+
+`make pki-rotate CA_KEY=/media/$USER/<stick1>/demo-ota-ca.key.pem` reads the
+key directly from the stick and asks for the passphrase. Nothing is copied
+to the dev machine. Unmount the stick and put it away afterwards.
+
+### Check it once a year
+
+Plug in each stick in turn and run the `openssl pkey ... -noout` check above.
+USB sticks fail silently over the years; if one does, make a new copy from
+the other one right away.
+
+### If a stick is lost
+
+The file is encrypted, so a lost stick alone is not a leak. Make a new copy
+from the other stick. If the passphrase may have been exposed as well (for
+example the stick and a note with the passphrase were lost together), treat
+it as a CA key leak (see [If a key leaks](#if-a-key-leaks)).
 
 ## How CI signs
 
@@ -82,12 +167,13 @@ deploy to release due to environment protection rules".
 Rotate before it expires (2 years; `openssl x509 -in
 ~/.demo-ota-pki/signing.cert.pem -noout -enddate`), or at any time:
 
-1. Get the CA key from offline storage.
-2. `make pki-rotate CA_KEY=/path/to/ca.key.pem`. The old signing key and
-   certificate move to `~/.demo-ota-pki/archive/<date>-<serial>/`, and a new
-   pair is issued by the same CA.
+1. Plug in one of the CA key sticks.
+2. `make pki-rotate CA_KEY=/media/$USER/<stick>/demo-ota-ca.key.pem`. The old
+   signing key and certificate move to
+   `~/.demo-ota-pki/archive/<date>-<serial>/`, and a new pair is issued by the
+   same CA.
 3. `make pki-github-secrets` replaces the secrets.
-4. Put the CA key back offline.
+4. Unmount the stick and put it away.
 5. Start the *Signing* workflow on `main` to check the new pair.
 
 Devices need nothing: the new certificate chains to the same CA. Bundles

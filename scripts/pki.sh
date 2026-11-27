@@ -89,8 +89,9 @@ cmd_init() {
   cat <<EOF
 
 PKI created in $PKI_DIR:
-  ca.key.pem        CA private key (encrypted). Move it to offline storage now
-                    (USB stick or password manager) and delete it here.
+  ca.key.pem        CA private key (encrypted). Copy it to two USB sticks,
+                    store the passphrase apart, then delete it here
+                    (docs/signing.md, "Managing the CA key").
   ca.cert.pem       CA certificate, copied to ${KEYRING#"$REPO_ROOT"/} (commit it)
   signing.*.pem     signing key and certificate: store them with
                     make pki-github-secrets
