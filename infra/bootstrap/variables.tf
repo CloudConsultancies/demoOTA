@@ -50,6 +50,25 @@ variable "github_repository_id" {
   }
 }
 
+variable "named_services" {
+  description = <<-EOT
+    Services whose demo-ota-* named resources the apply role manages by
+    name (S3 buckets are always included). IAM does not accept a wildcard
+    service in a resource ARN, so add a service here when a stack starts
+    using one whose resources have names.
+  EOT
+  type        = list(string)
+  default = [
+    "iam", "logs", "sns", "sqs", "events", "cloudwatch", "iot", "ssm",
+    "secretsmanager", "kms", "dynamodb", "lambda", "ecr", "ec2", "budgets",
+  ]
+
+  validation {
+    condition     = alltrue([for s in var.named_services : can(regex("^[a-z0-9-]+$", s))])
+    error_message = "named_services must be plain service prefixes such as \"iam\" or \"logs\" (no wildcards)."
+  }
+}
+
 variable "create_github_oidc_provider" {
   description = <<-EOT
     true: this stack creates the account's GitHub OIDC provider and owns it.

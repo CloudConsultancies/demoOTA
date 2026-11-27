@@ -22,14 +22,15 @@ locals {
   budget_arn       = "arn:aws:budgets::${local.account_id}:budget/${aws_budgets_budget.demo.name}"
   bootstrap_state  = "${local.state_bucket_arn}/bootstrap/*"
   demo_bucket_arns = ["arn:aws:s3:::${var.name_prefix}-*", "arn:aws:s3:::${var.name_prefix}-*/*"]
+  # Name-prefixed resources in this account, one pattern per service. IAM
+  # does not accept a wildcard in the service part of an ARN, so each
+  # service demoOTA uses is listed (var.named_services). The pattern
+  # covers every ARN layout:
+  #   arn:aws:sns:<region>:<acct>:demo-ota-x
+  #   arn:aws:iam::<acct>:role/demo-ota-x
+  #   arn:aws:logs:<region>:<acct>:log-group:demo-ota-x
   demo_resource_arns = [
-    # Name-prefixed resources in this account, whatever the ARN layout:
-    #   arn:aws:sns:<region>:<acct>:demo-ota-x
-    #   arn:aws:iam::<acct>:role/demo-ota-x
-    #   arn:aws:logs:<region>:<acct>:log-group:demo-ota-x
-    "arn:aws:*:*:${local.account_id}:${var.name_prefix}-*",
-    "arn:aws:*:*:${local.account_id}:*/${var.name_prefix}-*",
-    "arn:aws:*:*:${local.account_id}:*:${var.name_prefix}-*",
+    for svc in var.named_services : "arn:aws:${svc}:*:${local.account_id}:*${var.name_prefix}-*"
   ]
 
   # Services without a region (their requests count as us-east-1)
@@ -350,10 +351,18 @@ resource "aws_iam_role_policy" "apply" {
 # no more than the apply role, and no account-wide read access. Extend
 # the read set here (bootstrap change) when a later stack needs it.
 data "aws_iam_policy_document" "boundary" {
-  source_policy_documents = [
-    data.aws_iam_policy_document.demo_scope.json,
-    data.aws_iam_policy_document.deny_foreign_data.json,
-  ]
+  # No deny_foreign_data: roles under this boundary have no account-wide
+  # read access, so other projects' data is not allowed in the first
+  # place. Only the bootstrap state needs an explicit deny, because the
+  # demo scope covers the state bucket by name.
+  source_policy_documents = [data.aws_iam_policy_document.demo_scope.json]
+
+  statement {
+    sid       = "DenyBootstrapState"
+    effect    = "Deny"
+    actions   = ["s3:*"]
+    resources = [local.bootstrap_state]
+  }
 
   statement {
     sid = "BasicReads"
