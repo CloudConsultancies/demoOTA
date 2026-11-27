@@ -1,5 +1,6 @@
 # Terraform local state, plans and provider cache
 .terraform/
+.terraform-check/
 *.tfstate
 *.tfstate.*
 tfplan
@@ -8,3 +9,5 @@ tfplan
 !*.tfvars.example
 # Override files (bootstrap: backend_override.tf for the first, local-state apply)
 *_override.tf
+# Plan summary for the pull request comment (make infra-plan)
+plan-summary.md

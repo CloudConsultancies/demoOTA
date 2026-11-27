@@ -64,13 +64,78 @@ bootstrap-github-vars: ## Store the bootstrap outputs as GitHub repository varia
 	  | while read -r key value; do gh variable set "$$key" --body "$$value"; done
 	gh variable list
 
+# --- Infrastructure stacks (planned and applied by CI) ---------------------
+# CI calls these with the OIDC role credentials in the environment and
+# AWS_TFSTATE_BUCKET set from the repository variable. Locally, run them
+# with AWS_PROFILE=demo-k8s (a human only; plan is read-only).
+STACK     ?= storage
+INFRA_DIR  = infra/$(STACK)
+INFRA_TF   = terraform -chdir=$(INFRA_DIR)
+# CI sets AWS_TFSTATE_BUCKET; locally it is derived like the bootstrap's
+AWS_TFSTATE_BUCKET ?= $(TFSTATE_BUCKET)
+PLAN_SUMMARY       = $(INFRA_DIR)/plan-summary.md
+
+.PHONY: infra-init
+infra-init: ## terraform init of STACK (default: storage) with the S3 backend
+	$(INFRA_TF) init -input=false -backend-config="bucket=$(AWS_TFSTATE_BUCKET)"
+
+# Saves the plan (tfplan, git-ignored) and a Markdown summary of it
+# (plan-summary.md, git-ignored) for the pull request comment.
+.PHONY: infra-plan
+infra-plan: infra-init ## terraform plan of STACK, saved for infra-apply
+	$(INFRA_TF) plan -input=false -lock-timeout=5m -out=tfplan
+	scripts/plan-summary.sh $(INFRA_DIR) tfplan $(STACK) > $(PLAN_SUMMARY)
+
+.PHONY: infra-apply
+infra-apply: ## Apply exactly the plan saved by infra-plan
+	@[ -f $(INFRA_DIR)/tfplan ] || { echo "No saved plan: run make infra-plan first."; exit 1; }
+	$(INFRA_TF) apply -input=false -lock-timeout=5m tfplan
+	rm -f $(INFRA_DIR)/tfplan
+
+# Needs GH_TOKEN (pull-requests: write) and PR, the pull request number.
+# One comment per stack, updated on every push.
+.PHONY: infra-plan-comment
+infra-plan-comment: ## Post the plan summary of STACK to pull request PR
+	@[ -n "$(PR)" ] || { echo "Set PR=<pull request number>."; exit 1; }
+	@[ -f $(PLAN_SUMMARY) ] || { echo "No plan summary: run make infra-plan first."; exit 1; }
+	scripts/pr-comment.sh "$(PR)" "<!-- infra-plan:$(STACK) -->" $(PLAN_SUMMARY)
+
+# --- Storage stack: steps a human runs locally ------------------------------
+STORAGE_TF = AWS_PROFILE=$(BOOTSTRAP_PROFILE) terraform -chdir=infra/storage
+
+# Reads the outputs (from the S3 state, hence the profile) and stores
+# each one as a GitHub Actions repository variable of this repo. The
+# names are fixed, so this is needed once after the first apply.
+.PHONY: storage-github-vars
+storage-github-vars: ## Store the storage bucket names as GitHub repository variables
+	$(STORAGE_TF) init -input=false -backend-config="bucket=$(TFSTATE_BUCKET)" >/dev/null
+	@set -o pipefail; vars=$$($(STORAGE_TF) output -json github_variables) || exit 1; \
+	jq -r 'to_entries[] | "\(.key) \(.value)"' <<<"$$vars" \
+	  | while read -r key value; do gh variable set "$$key" --body "$$value"; done
+	gh variable list
+
+# Teardown after a demo. Only the cache goes: artifacts and records are
+# kept on purpose (prevent_destroy). Terraform shows the plan and asks
+# for confirmation. The next infra-apply on main creates the cache again.
+.PHONY: storage-destroy-cache
+storage-destroy-cache: ## Destroy the cache bucket and its contents (asks first)
+	$(STORAGE_TF) init -input=false -backend-config="bucket=$(TFSTATE_BUCKET)" >/dev/null
+	$(STORAGE_TF) destroy -target=aws_s3_bucket.cache
+
 # --- Checks (no cloud access) ----------------------------------------------
+# Own data directory (.terraform-check, git-ignored): a stack already
+# initialised with the S3 backend would otherwise need credentials.
+
+TF_STACKS := $(BOOTSTRAP_DIR) infra/storage
 
 .PHONY: tf-check
-tf-check: ## terraform fmt and validate (offline)
+tf-check: ## terraform fmt and validate of every stack (offline)
 	terraform fmt -check -recursive infra
-	terraform -chdir=$(BOOTSTRAP_DIR) init -backend=false -input=false >/dev/null
-	terraform -chdir=$(BOOTSTRAP_DIR) validate
+	@set -e; for dir in $(TF_STACKS); do \
+	  echo "validate $$dir"; \
+	  TF_DATA_DIR=.terraform-check terraform -chdir=$$dir init -backend=false -input=false >/dev/null; \
+	  TF_DATA_DIR=.terraform-check terraform -chdir=$$dir validate; \
+	done
 
 # --- CI ---------------------------------------------------------------------
 
