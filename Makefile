@@ -55,6 +55,15 @@ bootstrap-migrate: ## Move the local bootstrap state into the bucket (after the 
 bootstrap-outputs: ## Show the values to store as GitHub repository variables
 	$(BOOTSTRAP_TF) output github_variables
 
+# Reads the outputs (from the S3 state, hence the profile) and stores
+# each one as a GitHub Actions repository variable of this repo.
+.PHONY: bootstrap-github-vars
+bootstrap-github-vars: ## Store the bootstrap outputs as GitHub repository variables
+	@set -o pipefail; vars=$$($(BOOTSTRAP_TF) output -json github_variables) || exit 1; \
+	jq -r 'to_entries[] | "\(.key) \(.value)"' <<<"$$vars" \
+	  | while read -r key value; do gh variable set "$$key" --body "$$value"; done
+	gh variable list
+
 # --- Checks (no cloud access) ----------------------------------------------
 
 .PHONY: tf-check

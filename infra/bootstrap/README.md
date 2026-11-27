@@ -199,11 +199,13 @@ The workflows read the role ARNs and the bucket name from repository
 variables. None of them is secret. To set them all from the outputs:
 
 ```sh
-terraform -chdir=infra/bootstrap output -json github_variables \
-  | jq -r 'to_entries[] | "\(.key) \(.value)"' \
-  | while read -r key value; do gh variable set "$key" --body "$value"; done
-gh variable list
+make bootstrap-github-vars
 ```
+
+It reads the outputs from the S3 state (with the `demo-k8s` profile),
+runs `gh variable set NAME --body VALUE` for each one in this
+repository, and lists the result. Run it again after a change to the
+outputs; existing variables are overwritten.
 
 You can also set them by hand under *Settings → Secrets and variables →
 Actions → Variables*. Show the values with `make bootstrap-outputs`.
