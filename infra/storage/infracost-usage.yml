@@ -1,0 +1,26 @@
+# Usage assumptions for Infracost (make cost-estimate STACK=storage).
+# S3 is billed by usage, so without these the buckets show as $0.
+# Monthly figures for the demo, rounded up; the same assumptions as the
+# README's "Cost" section (agreed in #4). Change them when the demo's
+# usage changes.
+#   tier 1 requests: PUT, COPY, POST, LIST    tier 2: GET and others
+version: 0.1
+resource_usage:
+  # RAUC bundles, SBOMs, CVE reports: a few releases kept
+  aws_s3_bucket.artifacts:
+    standard:
+      storage_gb: 5
+      monthly_tier_1_requests: 1000
+      monthly_tier_2_requests: 10000
+  # Yocto downloads and sstate: a few builds a month
+  aws_s3_bucket.cache:
+    standard:
+      storage_gb: 40
+      monthly_tier_1_requests: 50000
+      monthly_tier_2_requests: 200000
+  # Audit log and per-device results: kilobytes
+  aws_s3_bucket.records:
+    standard:
+      storage_gb: 0.01
+      monthly_tier_1_requests: 1000
+      monthly_tier_2_requests: 1000

@@ -13,3 +13,6 @@ tfplan
 plan-summary.md
 # Local build output (dummy bundle, test runs)
 build/
+# Cost estimate (make cost-estimate): plan JSON, Infracost output, PR comment
+.infracost/
+cost-summary.md
