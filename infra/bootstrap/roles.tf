@@ -29,8 +29,12 @@ locals {
   #   arn:aws:sns:<region>:<acct>:demo-ota-x
   #   arn:aws:iam::<acct>:role/demo-ota-x
   #   arn:aws:logs:<region>:<acct>:log-group:demo-ota-x
+  # Global services (IAM, Budgets) must have an empty region; IAM rejects
+  # even a wildcard there. Regional ones get the demo region.
+  global_services = ["iam", "budgets"]
   demo_resource_arns = [
-    for svc in var.named_services : "arn:aws:${svc}:*:${local.account_id}:*${var.name_prefix}-*"
+    for svc in var.named_services :
+    "arn:aws:${svc}:${contains(local.global_services, svc) ? "" : var.region}:${local.account_id}:*${var.name_prefix}-*"
   ]
 
   # Services without a region (their requests count as us-east-1)

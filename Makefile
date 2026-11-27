@@ -36,6 +36,10 @@ bootstrap-init: ## terraform init of the bootstrap (S3 backend, or local with th
 bootstrap-plan: ## terraform plan of the bootstrap, saved for bootstrap-apply
 	$(BOOTSTRAP_TF) plan -out=tfplan
 
+.PHONY: bootstrap-validate
+bootstrap-validate: ## Check the saved plan's IAM policies with IAM Access Analyzer (read-only)
+	AWS_PROFILE=$(BOOTSTRAP_PROFILE) scripts/validate-iam-policies.sh $(BOOTSTRAP_DIR) tfplan
+
 .PHONY: bootstrap-apply
 bootstrap-apply: ## Apply exactly the plan saved by bootstrap-plan
 	@[ -f $(BOOTSTRAP_DIR)/tfplan ] || { echo "No saved plan: run make bootstrap-plan first and review it."; exit 1; }

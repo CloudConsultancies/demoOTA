@@ -136,6 +136,7 @@ cd ../..
 make bootstrap-local     # writes infra/bootstrap/backend_override.tf
 make bootstrap-init
 make bootstrap-plan
+make bootstrap-validate  # IAM Access Analyzer checks the planned policies (read-only)
 make bootstrap-apply
 
 make bootstrap-migrate   # removes the override; answer "yes" to copy the state
@@ -154,7 +155,14 @@ again.
 ### Later changes
 
 In any checkout: `make bootstrap-init` (once per checkout), then
-`make bootstrap-plan` and `make bootstrap-apply`.
+`make bootstrap-plan`, `make bootstrap-validate` and `make bootstrap-apply`.
+
+`bootstrap-validate` runs `aws accessanalyzer validate-policy` on the
+planned role, boundary and trust policies. `terraform validate` only
+checks the HCL; IAM's rules for policies (for example "no region in IAM
+ARNs") are checked only by IAM, so run it whenever a policy changes. It
+fails on ERROR and SECURITY_WARNING findings and lists warnings and
+suggestions.
 
 The Makefile sets `AWS_PROFILE=demo-k8s` (override with
 `BOOTSTRAP_PROFILE=...`) and derives the bucket name from the account ID
