@@ -145,6 +145,12 @@ rm infra/bootstrap/terraform.tfstate infra/bootstrap/terraform.tfstate.backup
 
 The state is now at `s3://demo-ota-tfstate-<account ID>/bootstrap/terraform.tfstate`.
 
+`make bootstrap-plan` saves the plan (`infra/bootstrap/tfplan`,
+git-ignored), and `make bootstrap-apply` applies exactly that plan
+without asking again: the review is the plan output. If anything changed
+in between, Terraform refuses the stale plan; run `make bootstrap-plan`
+again.
+
 ### Later changes
 
 In any checkout: `make bootstrap-init` (once per checkout), then

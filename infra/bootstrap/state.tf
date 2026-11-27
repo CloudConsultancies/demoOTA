@@ -10,6 +10,10 @@ locals {
 
   # Bucket names are global: the account ID makes this one unique.
   state_bucket = "${var.name_prefix}-tfstate-${local.account_id}"
+
+  # Computed instead of taken from the resource, so policies that name the
+  # bucket are known (and shown in full) at plan time
+  state_bucket_arn = "arn:aws:s3:::${local.state_bucket}"
 }
 
 resource "aws_s3_bucket" "tfstate" {
@@ -88,8 +92,8 @@ data "aws_iam_policy_document" "tfstate_bucket" {
     effect  = "Deny"
     actions = ["s3:*"]
     resources = [
-      aws_s3_bucket.tfstate.arn,
-      "${aws_s3_bucket.tfstate.arn}/*",
+      local.state_bucket_arn,
+      "${local.state_bucket_arn}/*",
     ]
     principals {
       type        = "*"

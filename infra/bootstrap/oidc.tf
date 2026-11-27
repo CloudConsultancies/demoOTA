@@ -31,9 +31,12 @@ data "aws_iam_openid_connect_provider" "github" {
 }
 
 locals {
+  # A provider's ARN is fixed by account and host. Computing it (instead of
+  # reading the new resource's arn) lets the plan show the trust and apply
+  # policies in full; the roles depend on the provider for ordering.
   github_oidc_provider_arn = (
     var.create_github_oidc_provider
-    ? aws_iam_openid_connect_provider.github[0].arn
+    ? "arn:aws:iam::${local.account_id}:oidc-provider/${local.github_oidc_host}"
     : data.aws_iam_openid_connect_provider.github[0].arn
   )
 }

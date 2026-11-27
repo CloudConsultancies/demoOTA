@@ -20,7 +20,6 @@ locals {
   apply_role_arn   = "arn:aws:iam::${local.account_id}:role/${local.apply_role_name}"
   boundary_arn     = "arn:aws:iam::${local.account_id}:policy/${local.boundary_name}"
   budget_arn       = "arn:aws:budgets::${local.account_id}:budget/${aws_budgets_budget.demo.name}"
-  state_bucket_arn = "arn:aws:s3:::${local.state_bucket}"
   bootstrap_state  = "${local.state_bucket_arn}/bootstrap/*"
   demo_bucket_arns = ["arn:aws:s3:::${var.name_prefix}-*", "arn:aws:s3:::${var.name_prefix}-*/*"]
   demo_resource_arns = [
@@ -131,6 +130,10 @@ resource "aws_iam_role" "plan" {
   description          = "GitHub Actions, any branch of ${var.github_owner}/${var.github_repository}: read-only (terraform plan)"
   assume_role_policy   = data.aws_iam_policy_document.trust_plan.json
   max_session_duration = 3600
+
+  # The trust policy names the provider by its computed ARN (so the plan
+  # shows it in full); create the provider first
+  depends_on = [aws_iam_openid_connect_provider.github]
 }
 
 resource "aws_iam_role_policy_attachment" "plan_readonly" {
@@ -325,6 +328,8 @@ resource "aws_iam_role" "apply" {
   description          = "GitHub Actions, main of ${var.github_owner}/${var.github_repository} only: manages demoOTA resources"
   assume_role_policy   = data.aws_iam_policy_document.trust_apply.json
   max_session_duration = 3600
+
+  depends_on = [aws_iam_openid_connect_provider.github]
 }
 
 # terraform plan/apply refresh needs to read what it manages

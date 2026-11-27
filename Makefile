@@ -29,13 +29,18 @@ bootstrap-init: ## terraform init of the bootstrap (S3 backend, or local with th
 	  $(BOOTSTRAP_TF) init -backend-config="bucket=$(TFSTATE_BUCKET)"; \
 	fi
 
+# The plan is saved (tfplan, git-ignored) and bootstrap-apply applies
+# exactly that plan, nothing re-planned. Terraform refuses a saved plan
+# that is stale (state changed since), so re-run bootstrap-plan then.
 .PHONY: bootstrap-plan
-bootstrap-plan: ## terraform plan of the bootstrap
-	$(BOOTSTRAP_TF) plan
+bootstrap-plan: ## terraform plan of the bootstrap, saved for bootstrap-apply
+	$(BOOTSTRAP_TF) plan -out=tfplan
 
 .PHONY: bootstrap-apply
-bootstrap-apply: ## terraform apply of the bootstrap (asks for confirmation)
-	$(BOOTSTRAP_TF) apply
+bootstrap-apply: ## Apply exactly the plan saved by bootstrap-plan
+	@[ -f $(BOOTSTRAP_DIR)/tfplan ] || { echo "No saved plan: run make bootstrap-plan first and review it."; exit 1; }
+	$(BOOTSTRAP_TF) apply tfplan
+	rm -f $(BOOTSTRAP_DIR)/tfplan
 
 .PHONY: bootstrap-migrate
 bootstrap-migrate: ## Move the local bootstrap state into the bucket (after the first apply)
