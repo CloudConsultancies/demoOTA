@@ -42,7 +42,7 @@ holds the full procedure; follow it instead of improvising the steps.
 | When | Skill |
 |---|---|
 | a task, bug or demo scenario comes up; "draft an issue" | `issue-draft`: draft in the chat, labels, create only after approval |
-| "work on #N"; pushing or opening the PR for an issue | `work-on-issue`: check the issue against the code, status In progress / In review, branch naming, `Refs #N`, ask before pushing, PR with `Closes #N`, never merge |
+| "work on #N"; pushing or opening the PR for an issue | `work-on-issue`: start only on status Todo, check the issue against the code, status In progress / In review, branch naming, `Refs #N`, ask before pushing, PR with `Closes #N`, never merge |
 | adding or changing a diagram | `drawio-diagram`: `docs/<name>.drawio.svg`, white background, text description, checker |
 | an issue or PR adds or changes cloud resources | `cost-impact`: "Cost impact" section, teardown check, always-on needs agreement |
 

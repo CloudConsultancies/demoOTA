@@ -1,12 +1,29 @@
 ---
 name: work-on-issue
-description: Implement a GitHub issue of this repo end to end - read it, check it still matches the code, set its status (In progress, In review), branch from the latest origin/main (issue/N-short-name or chore/short-name), commit with "Refs #N", stop and ask before pushing, then push, open the PR with "Closes #N" and report CI, never merge. Use when the user says "work on #12", "pick up issue 12", "implement #12", "start on the S3 issue", or asks to push or open the PR for the current issue branch.
+description: Implement a GitHub issue of this repo end to end - start only if its status is Todo, read it, check it still matches the code, set its status (In progress, In review), branch from the latest origin/main (issue/N-short-name or chore/short-name), commit with "Refs #N", stop and ask before pushing, then push, open the PR with "Closes #N" and report CI, never merge. Use when the user says "work on #12", "pick up issue 12", "implement #12", "start on the S3 issue", or asks to push or open the PR for the current issue branch.
 ---
 
 # Work on an issue
 
-Steps in order. Two stops need the user: before pushing (step 5) and any
-question or decision on the way (step 3).
+Steps in order. Three stops need the user: an issue that is not in **Todo**
+(step 0), any question or decision on the way (steps 1 and 3), and before
+pushing (step 5).
+
+## 0. Check the status: work only on Todo
+
+```sh
+.claude/skills/work-on-issue/get_status.sh N
+```
+
+- **Todo**: go on. The issue moves to **In progress** in step 2.
+- **Anything else** (Backlog, no status, In progress, In review, Done, Not
+  planned, Duplicate): do not start. No branch, no status change, no
+  comment. Tell the user the current status and stop. Only the user moves
+  an issue to Todo (Backlog means not yet ready or not yet prioritised).
+- Exception: the issue is already **In progress** or **In review** *and* its
+  branch (`issue/N-...`) exists, i.e. this is resuming started work (for
+  example "push the PR for #N"). Continue on that branch at the step it has
+  reached; do not create a new one.
 
 ## 1. Read the issue
 
@@ -53,7 +70,7 @@ Then set the issue's status to **In progress**:
 This is GitHub's built-in issue status (Backlog, Todo, In progress, In review,
 Done, Not planned, Duplicate). It is not a label and not a Projects field, and
 `gh` has no subcommand for it; the script uses GraphQL (`setIssueStatus`) and
-finds the status by name.
+finds the status by name. `get_status.sh N` reads it.
 
 ## 3. Implement
 
